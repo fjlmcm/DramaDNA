@@ -1,0 +1,6 @@
+[advisories]
+ignore = [
+  # Pulled into Cargo.lock only by SQLx's disabled MySQL feature; it is not in
+  # DramaDNA's active dependency graph. Remove when upstream no longer locks it.
+  "RUSTSEC-2023-0071",
+]
