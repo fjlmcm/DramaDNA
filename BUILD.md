@@ -46,7 +46,12 @@ FFmpeg 默认采用 LGPL 2.1+；如果构建时启用了 GPL 组件，则对应 
 ```json
 {
   "bundle": {
-    "externalBin": ["binaries/ffmpeg", "binaries/ffprobe"]
+    "externalBin": ["binaries/ffmpeg", "binaries/ffprobe"],
+    "resources": {
+      "../LICENSE": "LICENSE",
+      "../LICENSES/GPL-3.0.txt": "FFmpeg-GPL-3.0.txt",
+      "../THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md"
+    }
   }
 }
 ```
@@ -79,6 +84,27 @@ pnpm bundle
 
 构建产物位于 `src-tauri/target/release/bundle/`。
 
+## 自动发布
+
+推送与项目版本一致的语义化版本标签（例如 `v0.1.14`）会触发
+`.github/workflows/release.yml`。工作流会：
+
+1. 检查标签与 `package.json`、`Cargo.toml`、`tauri.conf.json` 的版本一致。
+2. 下载固定版本的 FFmpeg sidecar，并在解压前验证 SHA-256。
+3. 分别构建 macOS Apple Silicon、macOS Intel 的 DMG，以及 Windows x64 的
+   NSIS 和 MSI 安装包。
+4. 验证四个安装包都已上传，生成 `SHA256SUMS.txt`，附带项目许可证、GPLv3
+   正文和第三方声明，再把草稿发布为 GitHub prerelease。
+
+```bash
+git tag -a v0.1.14 -m "DramaDNA v0.1.14"
+git push origin v0.1.14
+```
+
+当前自动构建使用 macOS ad-hoc 签名，Windows 安装包未做 Authenticode 签名，
+因此系统可能显示来源或安全警告。在配置 Apple Developer ID、公证凭据和 Windows
+代码签名证书并验证安装流程之前，发布保持 prerelease 状态。
+
 ## 发布检查
 
 - 工作区干净，版本号在 `package.json`、`Cargo.toml` 和 `tauri.conf.json` 中一致
@@ -86,4 +112,5 @@ pnpm bundle
 - `pnpm audit --prod` 和 RustSec 审计没有未评估漏洞
 - 包内没有密钥、数据库、日志、测试素材或开发者路径
 - FFmpeg 来源、源码、配置和许可证材料与实际发布二进制一一对应
+- GitHub Release 包含两个 DMG、一个 MSI、一个 NSIS EXE 和 `SHA256SUMS.txt`
 - 在干净虚拟机上验证安装、启动、模型配置和卸载流程
