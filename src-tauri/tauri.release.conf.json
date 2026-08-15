@@ -1,5 +1,10 @@
 {
   "bundle": {
-    "externalBin": ["binaries/ffmpeg", "binaries/ffprobe"]
+    "externalBin": ["binaries/ffmpeg", "binaries/ffprobe"],
+    "resources": {
+      "../LICENSE": "LICENSE",
+      "../LICENSES/GPL-3.0.txt": "FFmpeg-GPL-3.0.txt",
+      "../THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md"
+    }
   }
 }

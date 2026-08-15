@@ -1,0 +1,324 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  create-release:
+    name: Create draft release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    outputs:
+      release_id: ${{ steps.release.outputs.release_id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Validate release version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          package_version="$(node --print "require('./package.json').version")"
+          tauri_version="$(node --print "require('./src-tauri/tauri.conf.json').version")"
+          cargo_version="$(
+            cargo metadata \
+              --manifest-path src-tauri/Cargo.toml \
+              --format-version 1 \
+              --no-deps |
+              jq --raw-output '.packages[] | select(.name == "dramadna") | .version'
+          )"
+
+          if [[ "${GITHUB_REF_NAME}" != "v${package_version}" ]]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match package.json v${package_version}." >&2
+            exit 1
+          fi
+
+          if [[ "${package_version}" != "${tauri_version}" || "${package_version}" != "${cargo_version}" ]]; then
+            echo "Release versions differ: package=${package_version}, tauri=${tauri_version}, cargo=${cargo_version}." >&2
+            exit 1
+          fi
+
+      - name: Create draft prerelease
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if release_json="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${GITHUB_REF_NAME}" 2>/dev/null)"; then
+            if [[ "$(jq --raw-output '.draft' <<<"${release_json}")" != "true" ]]; then
+              echo "Release ${GITHUB_REF_NAME} already exists and is not a draft." >&2
+              exit 1
+            fi
+            release_id="$(jq --raw-output '.id' <<<"${release_json}")"
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              --verify-tag \
+              --draft \
+              --prerelease \
+              --generate-notes \
+              --title "DramaDNA ${GITHUB_REF_NAME}" \
+              --notes '自动构建的预发布版本。当前安装包未使用 Apple Developer ID 或 Windows Authenticode 证书签名，系统可能显示安全警告。安装包包含适用 GPLv3 的 FFmpeg sidecar；来源与许可证信息见 THIRD_PARTY_NOTICES.md。'
+            release_id="$(
+              gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${GITHUB_REF_NAME}" \
+                --jq '.id'
+            )"
+          fi
+
+          echo "release_id=${release_id}" >>"${GITHUB_OUTPUT}"
+
+  build-release:
+    name: Build ${{ matrix.name }}
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS Apple Silicon
+            os: macos-15
+            target: aarch64-apple-darwin
+            bundles: dmg
+            sidecar: macos
+            ffmpeg_url: https://ffmpeg.martin-riedl.de/download/macos/arm64/1785863997_9.0/ffmpeg.zip
+            ffmpeg_sha256: 5267ef149ee0d208057a1b316aac079b661b0476574dee5da7d225769773c603
+            ffprobe_url: https://ffmpeg.martin-riedl.de/download/macos/arm64/1785863997_9.0/ffprobe.zip
+            ffprobe_sha256: 7778fbb533fb60d3336cbd9a9e51eced71658f020b570c7203590c1c41d42f50
+            apple_signing_identity: "-"
+          - name: macOS Intel
+            os: macos-15-intel
+            target: x86_64-apple-darwin
+            bundles: dmg
+            sidecar: macos
+            ffmpeg_url: https://ffmpeg.martin-riedl.de/download/macos/amd64/1785871427_9.0/ffmpeg.zip
+            ffmpeg_sha256: 79d14663d8b078dbbc38de18d63a30f8a5bfc860af5dfee7f8cf3e387cf1c02c
+            ffprobe_url: https://ffmpeg.martin-riedl.de/download/macos/amd64/1785871427_9.0/ffprobe.zip
+            ffprobe_sha256: a2dd3f2e7eb35a10fa6ac43b1a8c21890f27bee0dc4a86ddee16a57d72d3898d
+            apple_signing_identity: "-"
+          - name: Windows x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis,msi
+            sidecar: windows
+            ffmpeg_url: https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-14-13-16/ffmpeg-n8.1.2-40-g852b0552f0-win64-gpl-8.1.zip
+            ffmpeg_sha256: 4dc80a665fd8a3481acae3f7836807334396a607581f7123b35a71f2ebaacb5d
+            ffprobe_url: ""
+            ffprobe_sha256: ""
+            apple_signing_identity: ""
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        with:
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: src-tauri
+          key: release-${{ matrix.target }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare macOS FFmpeg sidecars
+        if: matrix.sidecar == 'macos'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          curl --fail --location --retry 3 \
+            --output "${RUNNER_TEMP}/ffmpeg.zip" \
+            "${{ matrix.ffmpeg_url }}"
+          curl --fail --location --retry 3 \
+            --output "${RUNNER_TEMP}/ffprobe.zip" \
+            "${{ matrix.ffprobe_url }}"
+
+          printf '%s  %s\n' \
+            '${{ matrix.ffmpeg_sha256 }}' "${RUNNER_TEMP}/ffmpeg.zip" \
+            '${{ matrix.ffprobe_sha256 }}' "${RUNNER_TEMP}/ffprobe.zip" |
+            shasum --algorithm 256 --check
+
+          mkdir -p \
+            "${RUNNER_TEMP}/ffmpeg" \
+            "${RUNNER_TEMP}/ffprobe" \
+            src-tauri/binaries
+          ditto -x -k "${RUNNER_TEMP}/ffmpeg.zip" "${RUNNER_TEMP}/ffmpeg"
+          ditto -x -k "${RUNNER_TEMP}/ffprobe.zip" "${RUNNER_TEMP}/ffprobe"
+
+          ffmpeg_path="$(find "${RUNNER_TEMP}/ffmpeg" -type f -name ffmpeg -print -quit)"
+          ffprobe_path="$(find "${RUNNER_TEMP}/ffprobe" -type f -name ffprobe -print -quit)"
+          test -n "${ffmpeg_path}"
+          test -n "${ffprobe_path}"
+
+          install -m 0755 \
+            "${ffmpeg_path}" \
+            "src-tauri/binaries/ffmpeg-${{ matrix.target }}"
+          install -m 0755 \
+            "${ffprobe_path}" \
+            "src-tauri/binaries/ffprobe-${{ matrix.target }}"
+
+      - name: Prepare Windows FFmpeg sidecars
+        if: matrix.sidecar == 'windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $archive = Join-Path $env:RUNNER_TEMP 'ffmpeg.zip'
+          $extract = Join-Path $env:RUNNER_TEMP 'ffmpeg'
+          Invoke-WebRequest -Uri '${{ matrix.ffmpeg_url }}' -OutFile $archive
+
+          $actualHash = (Get-FileHash -Path $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualHash -ne '${{ matrix.ffmpeg_sha256 }}') {
+            throw "FFmpeg archive checksum mismatch: $actualHash"
+          }
+
+          Expand-Archive -Path $archive -DestinationPath $extract
+          $ffmpeg = Get-ChildItem -Path $extract -Filter 'ffmpeg.exe' -File -Recurse |
+            Select-Object -First 1
+          $ffprobe = Get-ChildItem -Path $extract -Filter 'ffprobe.exe' -File -Recurse |
+            Select-Object -First 1
+          if ($null -eq $ffmpeg -or $null -eq $ffprobe) {
+            throw 'The FFmpeg archive does not contain ffmpeg.exe and ffprobe.exe.'
+          }
+
+          New-Item -ItemType Directory -Path 'src-tauri/binaries' -Force | Out-Null
+          Copy-Item -Path $ffmpeg.FullName -Destination 'src-tauri/binaries/ffmpeg-${{ matrix.target }}.exe'
+          Copy-Item -Path $ffprobe.FullName -Destination 'src-tauri/binaries/ffprobe-${{ matrix.target }}.exe'
+
+      - name: Verify macOS sidecars
+        if: matrix.sidecar == 'macos'
+        shell: bash
+        run: |
+          "src-tauri/binaries/ffmpeg-${{ matrix.target }}" -version | head -n 1
+          "src-tauri/binaries/ffprobe-${{ matrix.target }}" -version | head -n 1
+
+      - name: Verify Windows sidecars
+        if: matrix.sidecar == 'windows'
+        shell: pwsh
+        run: |
+          & 'src-tauri/binaries/ffmpeg-${{ matrix.target }}.exe' -version |
+            Select-Object -First 1
+          & 'src-tauri/binaries/ffprobe-${{ matrix.target }}.exe' -version |
+            Select-Object -First 1
+
+      - name: Build and upload installers
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPLE_SIGNING_IDENTITY: ${{ matrix.apple_signing_identity }}
+        with:
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+          releaseDraft: true
+          prerelease: true
+          tauriScript: pnpm tauri
+          args: >-
+            --target ${{ matrix.target }}
+            --bundles ${{ matrix.bundles }}
+            --config src-tauri/tauri.release.conf.json
+          releaseAssetNamePattern: DramaDNA_[version]_[platform]_[arch][ext]
+          retryAttempts: 2
+          uploadUpdaterJson: false
+
+  publish-release:
+    name: Verify and publish prerelease
+    needs: [create-release, build-release]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Verify assets and publish prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_json="$(gh api "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}")"
+          mapfile -t installer_names < <(
+            jq --raw-output \
+              '.assets[].name | select(test("\\.(dmg|msi|exe)$"))' \
+              <<<"${release_json}"
+          )
+
+          dmg_count="$(printf '%s\n' "${installer_names[@]}" | grep -c '\.dmg$' || true)"
+          msi_count="$(printf '%s\n' "${installer_names[@]}" | grep -c '\.msi$' || true)"
+          exe_count="$(printf '%s\n' "${installer_names[@]}" | grep -c '\.exe$' || true)"
+          if [[ "${dmg_count}" -ne 2 || "${msi_count}" -ne 1 || "${exe_count}" -ne 1 ]]; then
+            printf 'Unexpected installer assets:\n%s\n' "${installer_names[*]}" >&2
+            exit 1
+          fi
+
+          checksum_file="${RUNNER_TEMP}/SHA256SUMS.txt"
+          fallback_dir="${RUNNER_TEMP}/release-assets"
+          mkdir -p "${fallback_dir}"
+          : >"${checksum_file}"
+          for installer_name in "${installer_names[@]}"; do
+            digest="$(
+              jq --raw-output --arg name "${installer_name}" \
+                '.assets[] | select(.name == $name) | .digest // empty' \
+                <<<"${release_json}"
+            )"
+            if [[ "${digest}" != sha256:* ]]; then
+              gh release download "${GITHUB_REF_NAME}" \
+                --pattern "${installer_name}" \
+                --dir "${fallback_dir}"
+              digest="sha256:$(sha256sum "${fallback_dir}/${installer_name}" | cut -d ' ' -f 1)"
+            fi
+            printf '%s  %s\n' "${digest#sha256:}" "${installer_name}" >>"${checksum_file}"
+          done
+          sort --key=2 "${checksum_file}" --output="${checksum_file}"
+
+          gh release upload "${GITHUB_REF_NAME}" \
+            LICENSE \
+            LICENSES/GPL-3.0.txt \
+            THIRD_PARTY_NOTICES.md \
+            "${checksum_file}#SHA256SUMS.txt" \
+            --clobber
+
+          gh api \
+            --method PATCH \
+            "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
+            -F draft=false \
+            -F prerelease=true \
+            --jq '.html_url'
