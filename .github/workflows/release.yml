@@ -60,26 +60,32 @@ jobs:
         run: |
           set -euo pipefail
 
-          if release_json="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${GITHUB_REF_NAME}" 2>/dev/null)"; then
+          release_json="$(
+            gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" |
+              jq --slurp --compact-output --arg tag "${GITHUB_REF_NAME}" \
+                '[.[][] | select(.tag_name == $tag)] | first // empty'
+          )"
+
+          if [[ -n "${release_json}" ]]; then
             if [[ "$(jq --raw-output '.draft' <<<"${release_json}")" != "true" ]]; then
               echo "Release ${GITHUB_REF_NAME} already exists and is not a draft." >&2
               exit 1
             fi
-            release_id="$(jq --raw-output '.id' <<<"${release_json}")"
           else
-            gh release create "${GITHUB_REF_NAME}" \
-              --verify-tag \
-              --draft \
-              --prerelease \
-              --generate-notes \
-              --title "DramaDNA ${GITHUB_REF_NAME}" \
-              --notes '自动构建的预发布版本。当前安装包未使用 Apple Developer ID 或 Windows Authenticode 证书签名，系统可能显示安全警告。安装包包含适用 GPLv3 的 FFmpeg sidecar；来源与许可证信息见 THIRD_PARTY_NOTICES.md。'
-            release_id="$(
-              gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${GITHUB_REF_NAME}" \
-                --jq '.id'
+            release_json="$(
+              gh api \
+                --method POST \
+                "repos/${GITHUB_REPOSITORY}/releases" \
+                -f tag_name="${GITHUB_REF_NAME}" \
+                -f name="DramaDNA ${GITHUB_REF_NAME}" \
+                -f body='自动构建的预发布版本。当前安装包未使用 Apple Developer ID 或 Windows Authenticode 证书签名，系统可能显示安全警告。安装包包含适用 GPLv3 的 FFmpeg sidecar；来源与许可证信息见 THIRD_PARTY_NOTICES.md。' \
+                -F draft=true \
+                -F prerelease=true \
+                -F generate_release_notes=true
             )"
           fi
 
+          release_id="$(jq --raw-output '.id' <<<"${release_json}")"
           echo "release_id=${release_id}" >>"${GITHUB_OUTPUT}"
 
   build-release:
