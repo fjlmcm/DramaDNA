@@ -1,0 +1,265 @@
+@import "tailwindcss";
+
+/* ──────────────────────────────────────────────────────────
+ * DramaDNA · Mocha (摩卡) 主题
+ * 灵感:Catppuccin Mocha × 深焙咖啡 × 焦糖奶白
+ * 整套都是暖色:基色偏红棕,文本带奶意,强调色焦糖金。
+ * ────────────────────────────────────────────────────────── */
+@theme {
+  /* surfaces - 从最深到最浅,层级清晰 */
+  --color-mocha-crust: oklch(13% 0.015 30);    /* 应用最底 */
+  --color-mocha-mantle: oklch(17% 0.018 32);   /* 顶层背板 */
+  --color-mocha-base: oklch(20% 0.022 32);     /* 卡片底 */
+  --color-mocha-surface: oklch(24% 0.028 34);  /* 抬高卡片 */
+  --color-mocha-overlay: oklch(30% 0.034 36);  /* 悬浮/选中 */
+  --color-mocha-rim: oklch(36% 0.04 38);       /* 描边 */
+
+  /* text - 三阶 */
+  --color-mocha-text: oklch(92% 0.022 70);     /* 奶白主文本 */
+  --color-mocha-subtext: oklch(78% 0.028 65);  /* 次要 */
+  --color-mocha-muted: oklch(58% 0.025 55);    /* 弱化 */
+
+  /* accents */
+  --color-mocha-accent: oklch(78% 0.13 70);    /* 焦糖金 (主强调) */
+  --color-mocha-accent-soft: oklch(72% 0.09 65);
+  --color-mocha-pink: oklch(78% 0.12 20);      /* 奶昔粉 */
+  --color-mocha-green: oklch(75% 0.13 145);    /* 抹茶 (成功) */
+  --color-mocha-rose: oklch(70% 0.18 25);      /* 玫瑰 (失败/危险) */
+  --color-mocha-mauve: oklch(72% 0.13 310);    /* 紫莓 (付费) */
+  --color-mocha-blue: oklch(72% 0.12 235);     /* 蓝调 (信息) */
+
+  /* shadows - 极轻 */
+  --shadow-mocha-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-mocha: 0 4px 16px -4px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-mocha-lg: 0 24px 48px -12px rgb(0 0 0 / 0.6);
+
+  /* easing */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+
+  /* radius */
+  --radius-mocha-sm: 6px;
+  --radius-mocha: 10px;
+  --radius-mocha-lg: 14px;
+
+  /* fonts */
+  --font-sans: "Inter", "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei",
+    system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Code", ui-monospace,
+    monospace;
+}
+
+/* ──────────────────────────────────────────────────────────
+ * 全局基线
+ * ────────────────────────────────────────────────────────── */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color-scheme: dark;
+  }
+
+  body {
+    background:
+      radial-gradient(
+        ellipse 80% 60% at 50% -10%,
+        oklch(28% 0.05 35 / 0.45),
+        transparent 60%
+      ),
+      var(--color-mocha-mantle);
+    color: var(--color-mocha-text);
+    min-height: 100%;
+    overflow: hidden;
+  }
+
+  ::selection {
+    background: oklch(78% 0.13 70 / 0.35);
+    color: var(--color-mocha-text);
+  }
+
+  /* 自定义滚动条 - 极细,暖色 */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(36% 0.025 38 / 0.6);
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(48% 0.035 40 / 0.8);
+    background-clip: content-box;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────
+ * 复用 utilities
+ * ────────────────────────────────────────────────────────── */
+@layer utilities {
+  /* 微光泽玻璃面 */
+  .pane {
+    background: linear-gradient(
+      180deg,
+      oklch(22% 0.025 32 / 0.85),
+      oklch(18% 0.02 30 / 0.85)
+    );
+    border: 1px solid oklch(30% 0.025 36 / 0.6);
+    backdrop-filter: blur(20px) saturate(140%);
+    border-radius: var(--radius-mocha-lg);
+  }
+
+  .pane-inset {
+    background: oklch(18% 0.02 32);
+    border: 1px solid oklch(28% 0.025 34 / 0.5);
+    border-radius: var(--radius-mocha);
+  }
+
+  .hairline {
+    border-color: oklch(30% 0.025 36 / 0.4);
+  }
+
+  .text-mocha-text { color: var(--color-mocha-text); }
+  .text-mocha-subtext { color: var(--color-mocha-subtext); }
+  .text-mocha-muted { color: var(--color-mocha-muted); }
+  .text-mocha-accent { color: var(--color-mocha-accent); }
+
+  .bg-mocha-crust { background-color: var(--color-mocha-crust); }
+  .bg-mocha-mantle { background-color: var(--color-mocha-mantle); }
+  .bg-mocha-base { background-color: var(--color-mocha-base); }
+  .bg-mocha-surface { background-color: var(--color-mocha-surface); }
+  .bg-mocha-overlay { background-color: var(--color-mocha-overlay); }
+
+  .ring-mocha-rim { --tw-ring-color: var(--color-mocha-rim); }
+  .border-mocha-rim { border-color: var(--color-mocha-rim); }
+
+  /* 按钮基类 — 焦糖 fill */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+    color: oklch(20% 0.04 40);
+    background: linear-gradient(
+      135deg,
+      oklch(82% 0.14 75),
+      oklch(72% 0.13 60)
+    );
+    border-radius: var(--radius-mocha);
+    box-shadow: var(--shadow-mocha-sm),
+      inset 0 1px 0 oklch(95% 0.05 80 / 0.4);
+    transition:
+      transform 180ms var(--ease-out-expo),
+      box-shadow 180ms var(--ease-out-expo),
+      filter 180ms var(--ease-out-expo);
+  }
+  .btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-mocha),
+      inset 0 1px 0 oklch(95% 0.05 80 / 0.45);
+    filter: brightness(1.05);
+  }
+  .btn-primary:active:not(:disabled) {
+    transform: translateY(0);
+    filter: brightness(0.96);
+  }
+  .btn-primary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.875rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    color: var(--color-mocha-subtext);
+    background: transparent;
+    border: 1px solid oklch(30% 0.025 36 / 0.6);
+    border-radius: var(--radius-mocha);
+    transition: all 180ms var(--ease-out-expo);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    color: var(--color-mocha-text);
+    background: oklch(28% 0.028 34 / 0.6);
+    border-color: oklch(40% 0.035 38 / 0.7);
+  }
+
+  /* 焦点环 */
+  .focus-ring:focus-visible {
+    outline: 2px solid var(--color-mocha-accent);
+    outline-offset: 2px;
+  }
+
+  /* 进度条本体 */
+  .progress-bar {
+    position: relative;
+    height: 3px;
+    border-radius: 999px;
+    background: oklch(30% 0.025 36 / 0.45);
+    overflow: hidden;
+  }
+  .progress-bar > span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      oklch(75% 0.13 65),
+      oklch(85% 0.14 80)
+    );
+    border-radius: 999px;
+    transition: width 280ms var(--ease-out-expo);
+    box-shadow: 0 0 8px oklch(78% 0.13 70 / 0.5);
+  }
+
+  /* 卡片悬浮 */
+  .card-hover {
+    transition:
+      transform 220ms var(--ease-out-expo),
+      box-shadow 220ms var(--ease-out-expo),
+      border-color 220ms var(--ease-out-expo);
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-mocha);
+  }
+
+  /* 复用动画 */
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slide-in-right {
+    from { transform: translateX(20px); opacity: 0; }
+    to   { transform: translateX(0); opacity: 1; }
+  }
+  .anim-toast-in { animation: toast-in 240ms var(--ease-out-expo); }
+  .anim-slide-in-right { animation: slide-in-right 280ms var(--ease-out-expo); }
+
+  /* 拖拽区 */
+  .drag-region {
+    -webkit-app-region: drag;
+    app-region: drag;
+  }
+  .no-drag {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+}

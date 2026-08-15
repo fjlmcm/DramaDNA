@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Hardened Runtime:WebKit 在 release 构建里需要 JIT -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    <!-- ffmpeg sidecar 动态链接一批 dylib,需放行库校验 -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+    <!-- 出站网络:调用大模型供应商 API -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+    <!-- 读取用户选择的视频文件、写入导出结果 -->
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+    <key>com.apple.security.files.downloads.read-write</key>
+    <true/>
+</dict>
+</plist>

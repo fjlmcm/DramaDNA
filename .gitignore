@@ -1,0 +1,59 @@
+# deps
+node_modules/
+.pnpm-store/
+
+# local environment / credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p8
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.mobileprovision
+credentials*.json
+secrets*.json
+
+# build output
+dist/
+*.tsbuildinfo
+
+# tauri
+src-tauri/target/
+src-tauri/gen/
+
+# sidecar 二进制 / 动态库 —— 由 build 脚本现下现打,不入库
+src-tauri/binaries/ffmpeg-*
+src-tauri/binaries/ffprobe-*
+src-tauri/Frameworks/
+!src-tauri/binaries/.gitkeep
+
+# 本地数据库 / 用户数据
+*.db
+*.db-shm
+*.db-wal
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/
+
+# logs
+*.log
+
+# media / 剧目素材与拆解产出（本地数据，不入库）
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.webm
+*.m4v
+*.wav
+*.mp3
+*.m4a
+*_*亿/
+拆解/
+拆解产出/
