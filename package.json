@@ -17,8 +17,8 @@
     "release": "node scripts/bump-version.mjs && tauri build --config src-tauri/tauri.release.conf.json && node scripts/commit-release.mjs"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.4.0",
-    "@tauri-apps/plugin-dialog": "^2.4.0",
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-dialog": "^2.7.2",
     "@tauri-apps/plugin-opener": "^2.4.0",
     "framer-motion": "^11.15.0",
     "lucide-react": "^0.555.0",
@@ -26,17 +26,17 @@
     "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
-    "zustand": "^5.0.13"
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.1.17",
-    "@tauri-apps/cli": "^2.10.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@tauri-apps/cli": "^2.11.4",
     "@types/node": "^22.10.5",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^5.2.0",
-    "playwright": "^1.60.0",
-    "tailwindcss": "^4.1.17",
+    "playwright": "^1.62.1",
+    "tailwindcss": "^4.3.3",
     "typescript": "~5.6.3",
     "vite": "^6.4.3"
   }
